@@ -1,0 +1,44 @@
+name: 构建WireGuard客户端
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 检出仓库
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      # 执行 build 命令
+      - name: 构建WireGuard
+        id: build
+        run: |
+          .\build.bat 
+          # 设置环境变量
+          echo "status=success" >> $env:GITHUB_ENV
+          # 设置输出变量
+          echo "status=success" >> $env:GITHUB_OUTPUT
+
+      # 输出 status 环境变量，帮助调试
+      - name: 输出 status 环境变量
+        run: echo "status=${{ env.status }}"          
+
+      # 打包 amd64 和 arm64 目录为 zip 文件
+      - name: 打包 amd64 和 arm64 目录为 zip 文件
+        if: ${{ env.status == 'success' }}
+        run: |          
+          # 压缩 amd64和arm64 目录
+          powershell Compress-Archive -Path ./amd64, ./arm64 -DestinationPath ./wireguard-windows.zip 
+          
+      # 上传压缩包到 GitHub Release
+      - name: 上传压缩包到 GitHub Release
+        if: ${{ env.status == 'success' }}
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: v${{ github.run_number }}
+          files: ./wireguard-windows.zip 
+          body: |
+             wireguard windows客户端，支持ip4p
